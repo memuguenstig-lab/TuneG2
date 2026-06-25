@@ -1,0 +1,6 @@
+{
+  "name": "KirinControl",
+  "description": "Mobile dashboard and control app for KuKirin G2 E-Scooter using Bluetooth Low Energy (BLE).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
