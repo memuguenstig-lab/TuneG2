@@ -31,9 +31,12 @@ import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -96,6 +99,7 @@ fun DashboardScreen(
     val isSimMode by viewModel.isSimulationMode.collectAsState()
 
     var simulateThrottleValue by remember { mutableFloatStateOf(0f) }
+    var steeringAngle by remember { mutableFloatStateOf(0f) }
 
     // Sync physical slider / throttle value with manager
     LaunchedEffect(simulateThrottleValue) {
@@ -104,10 +108,11 @@ fun DashboardScreen(
         }
     }
 
-    // Reset throttle when disconnected or simulation mode changes
+    // Reset throttle and steering when disconnected or simulation mode changes
     LaunchedEffect(connState, isSimMode) {
         if (connState != ConnectionState.CONNECTED) {
             simulateThrottleValue = 0f
+            steeringAngle = 0f
             viewModel.simulateThrottle(0f)
         }
     }
@@ -148,12 +153,21 @@ fun DashboardScreen(
         }
 
         // Circular Speedometer Arc View
-        val calculatedMaxSpeed = if (telemetry.speedLimitUnlocked) telemetry.customMaxSpeed else 25f
+        val calculatedMaxSpeed = if (telemetry.speedLimitUnlocked) {
+            if (telemetry.customMaxSpeed > 0f) telemetry.customMaxSpeed else 55f
+        } else {
+            25f
+        }
         SpeedometerSection(
             speed = telemetry.speedKmh,
             maxSpeed = calculatedMaxSpeed,
             turboActive = telemetry.turboModeEnabled
         )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Visual handlebar/steering angle section
+        HandlebarSection(angle = steeringAngle)
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -185,7 +199,9 @@ fun DashboardScreen(
                         if (pressed) {
                             simulateThrottleValue = 0f
                         }
-                    }
+                    },
+                    steeringAngle = steeringAngle,
+                    onSteeringChange = { steeringAngle = it }
                 )
             }
         } else {
@@ -478,6 +494,113 @@ fun SpeedometerSection(speed: Float, maxSpeed: Float, turboActive: Boolean = fal
                 }
             }
         }
+    }
+}
+
+@Composable
+fun HandlebarSection(angle: Float) {
+    val animatedAngle by animateFloatAsState(
+        targetValue = angle,
+        animationSpec = tween(durationMillis = 100),
+        label = "HandlebarAngle"
+    )
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(140.dp, 60.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val center = Offset(size.width / 2, size.height / 2)
+                
+                rotate(degrees = animatedAngle, pivot = center) {
+                    // Draw central stem extension
+                    drawLine(
+                        color = Color.LightGray.copy(alpha = 0.5f),
+                        start = center,
+                        end = Offset(center.x, center.y - 12.dp.toPx()),
+                        strokeWidth = 6.dp.toPx(),
+                        cap = StrokeCap.Round
+                    )
+                    
+                    // Draw main handlebar line (left to right)
+                    val barWidth = 100.dp.toPx()
+                    drawLine(
+                        color = Color.White,
+                        start = Offset(center.x - barWidth / 2, center.y - 12.dp.toPx()),
+                        end = Offset(center.x + barWidth / 2, center.y - 12.dp.toPx()),
+                        strokeWidth = 8.dp.toPx(),
+                        cap = StrokeCap.Round
+                    )
+                    
+                    // Draw left grip (accent color, e.g. DarkGray)
+                    drawLine(
+                        color = Color.DarkGray,
+                        start = Offset(center.x - barWidth / 2, center.y - 12.dp.toPx()),
+                        end = Offset(center.x - barWidth / 2 + 18.dp.toPx(), center.y - 12.dp.toPx()),
+                        strokeWidth = 10.dp.toPx(),
+                        cap = StrokeCap.Square
+                    )
+                    
+                    // Draw right grip (accent color, e.g. DarkGray)
+                    drawLine(
+                        color = Color.DarkGray,
+                        start = Offset(center.x + barWidth / 2 - 18.dp.toPx(), center.y - 12.dp.toPx()),
+                        end = Offset(center.x + barWidth / 2, center.y - 12.dp.toPx()),
+                        strokeWidth = 10.dp.toPx(),
+                        cap = StrokeCap.Square
+                    )
+                    
+                    // Draw central display box on handlebar
+                    drawRect(
+                        color = Color.Black,
+                        topLeft = Offset(center.x - 12.dp.toPx(), center.y - 20.dp.toPx()),
+                        size = Size(24.dp.toPx(), 16.dp.toPx()),
+                        style = Fill
+                    )
+                    drawRect(
+                        color = Color.Green.copy(alpha = 0.8f),
+                        topLeft = Offset(center.x - 12.dp.toPx(), center.y - 20.dp.toPx()),
+                        size = Size(24.dp.toPx(), 16.dp.toPx()),
+                        style = Stroke(width = 1.5.dp.toPx())
+                    )
+                }
+                
+                // Stationary central base point
+                drawCircle(
+                    color = Color.Gray,
+                    radius = 5.dp.toPx(),
+                    center = center
+                )
+            }
+        }
+        
+        // Text readout of direction
+        val directionText = when {
+            angle < -2f -> "LINKS LENKEN: ${String.format("%.0f", -angle)}°"
+            angle > 2f -> "RECHTS LENKEN: ${String.format("%.0f", angle)}°"
+            else -> "GERADEAUS"
+        }
+        val directionColor = when {
+            angle < -2f -> MaterialTheme.colorScheme.primary
+            angle > 2f -> MaterialTheme.colorScheme.primary
+            else -> MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+        }
+        
+        Text(
+            text = directionText,
+            style = MaterialTheme.typography.labelMedium.copy(
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
+            ),
+            color = directionColor
+        )
     }
 }
 
@@ -825,7 +948,9 @@ fun ControlCenterCard(
 fun SimulatorControlCard(
     throttleValue: Float,
     onThrottleChange: (Float) -> Unit,
-    onBrakeChange: (Boolean) -> Unit
+    onBrakeChange: (Boolean) -> Unit,
+    steeringAngle: Float,
+    onSteeringChange: (Float) -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -875,6 +1000,46 @@ fun SimulatorControlCard(
                     modifier = Modifier.width(40.dp),
                     textAlign = TextAlign.End
                 )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Lenkung slider (Steering Angle)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Lenkung:",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.width(65.dp)
+                )
+                Slider(
+                    value = steeringAngle,
+                    onValueChange = onSteeringChange,
+                    valueRange = -45f..45f,
+                    colors = SliderDefaults.colors(
+                        thumbColor = MaterialTheme.colorScheme.primary,
+                        activeTrackColor = MaterialTheme.colorScheme.primary
+                    ),
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("simulator_steering_slider")
+                )
+                
+                // Snap to center icon button
+                IconButton(
+                    onClick = { onSteeringChange(0f) },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Geradeaus",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
