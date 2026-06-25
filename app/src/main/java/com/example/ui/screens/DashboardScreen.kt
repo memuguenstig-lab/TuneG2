@@ -165,7 +165,7 @@ fun DashboardScreen(
 
         // Circular Speedometer Arc View
         val calculatedMaxSpeed = if (telemetry.speedLimitUnlocked) {
-            if (telemetry.customMaxSpeed > 0f) telemetry.customMaxSpeed else 55f
+            if (telemetry.customMaxSpeed > 0f) telemetry.customMaxSpeed else 120f
         } else {
             25f
         }
@@ -898,7 +898,7 @@ fun ControlCenterCard(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "SPEED LIMIT UNLOCKED: Scooter ist getunt (vMax ~65 km/h)!",
+                            text = "SPEED LIMIT UNLOCKED: Scooter ist getunt (vMax ~120 km/h)!",
                             color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold
@@ -1661,7 +1661,7 @@ fun DriveModePresetsCard(
                     Triple("ECO", "20 km/h", Color(0xFF4CAF50)),
                     Triple("STVZO", "22 km/h", Color(0xFF2196F3)),
                     Triple("SPORT", "38 km/h", Color(0xFFFF9800)),
-                    Triple("RACE", "55 km/h", Color(0xFFE91E63))
+                    Triple("RACE", "120 km/h", Color(0xFFE91E63))
                 )
 
                 modes.forEach { (name, label, color) ->
@@ -1669,7 +1669,7 @@ fun DriveModePresetsCard(
                         "ECO" -> currentSpeedLimit == 20f && !isTurbo && !isDual
                         "STVZO" -> currentSpeedLimit == 22f && !isTurbo && !isDual
                         "SPORT" -> currentSpeedLimit == 38f && !isTurbo && isDual
-                        "RACE" -> currentSpeedLimit == 55f && isTurbo && isDual
+                        "RACE" -> currentSpeedLimit == 120f && isTurbo && isDual
                         else -> false
                     }
 

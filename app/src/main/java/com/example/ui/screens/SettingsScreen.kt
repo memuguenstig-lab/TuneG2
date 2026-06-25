@@ -412,7 +412,7 @@ fun parseScooterData(data: ByteArray) {
                 var flashProgress by remember { mutableStateOf(0) }
                 var flashStatusText by remember { mutableStateOf("") }
 
-                // 1. Custom Max Speed Slider (25 to 55 km/h)
+                // 1. Custom Max Speed Slider (25 to 120 km/h)
                 Column {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -435,8 +435,7 @@ fun parseScooterData(data: ByteArray) {
                     Slider(
                         value = localMaxSpeed,
                         onValueChange = { localMaxSpeed = it },
-                        valueRange = 25f..55f,
-                        steps = 5,
+                        valueRange = 25f..120f,
                         colors = SliderDefaults.colors(
                             thumbColor = MaterialTheme.colorScheme.primary,
                             activeTrackColor = MaterialTheme.colorScheme.primary
@@ -460,7 +459,7 @@ fun parseScooterData(data: ByteArray) {
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Aktiviert das versteckte Turbo-Register für maximale Beschleunigung (bis zu 55 km/h)",
+                            text = "Aktiviert das versteckte Turbo-Register für maximale Beschleunigung (bis zu 120 km/h)",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                         )
@@ -599,7 +598,7 @@ fun parseScooterData(data: ByteArray) {
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "Die Nutzung von Tuning-Funktionen wie Allradantrieb (Dual Motor Mode) und Aufhebung der Geschwindigkeitsbegrenzung (bis zu 65 km/h) führt im Geltungsbereich der StVZO zum Erlöschen der Betriebserlaubnis und des Versicherungsschutzes. Diese App macht KEINE permanenten Änderungen an sicherheitsrelevanten Parametern oder Firmware-Bestandteilen. Alle Änderungen sind temporäre BLE-Befehle und verfallen nach dem Ausschalten des Scooters.",
+                    text = "Die Nutzung von Tuning-Funktionen wie Allradantrieb (Dual Motor Mode) und Aufhebung der Geschwindigkeitsbegrenzung (bis zu 120 km/h) führt im Geltungsbereich der StVZO zum Erlöschen der Betriebserlaubnis und des Versicherungsschutzes. Diese App macht KEINE permanenten Änderungen an sicherheitsrelevanten Parametern oder Firmware-Bestandteilen. Alle Änderungen sind temporäre BLE-Befehle und verfallen nach dem Ausschalten des Scooters.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                     textAlign = TextAlign.Justify

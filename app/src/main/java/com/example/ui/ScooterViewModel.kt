@@ -162,7 +162,7 @@ class ScooterViewModel(
                 bleManager.setGear(3)
             }
             "RACE" -> {
-                bleManager.setCustomMaxSpeed(55f)
+                bleManager.setCustomMaxSpeed(120f)
                 bleManager.toggleSoftStart(false)
                 bleManager.toggleDualMotor(true)
                 bleManager.toggleTurboMode(true)

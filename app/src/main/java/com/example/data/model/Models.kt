@@ -28,7 +28,7 @@ data class ScooterTelemetry(
     val softStartEnabled: Boolean = false,
     val reverseGearEnabled: Boolean = false,
     val soundSimulationEnabled: Boolean = false,
-    val customMaxSpeed: Float = 55f
+    val customMaxSpeed: Float = 120f
 )
 
 @Entity(tableName = "rides")

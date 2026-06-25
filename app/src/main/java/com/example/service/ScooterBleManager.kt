@@ -876,7 +876,7 @@ class ScooterBleManager(private val context: Context) {
                         val synthValue = (sinValue * 0.25) + (triValue * 0.12 * loadAcc) + (subValue * 0.3)
                         
                         // Volume is quieter at idle, louder with speed/throttle
-                        val volumeScale = 0.12 + (speed / 55.0).coerceIn(0.0, 0.38) + (loadAcc * 0.1)
+                        val volumeScale = 0.12 + (speed / 120.0).coerceIn(0.0, 0.38) + (loadAcc * 0.1)
                         val sample = (synthValue * Short.MAX_VALUE * volumeScale).toInt()
                             .coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
 
@@ -969,7 +969,7 @@ class ScooterBleManager(private val context: Context) {
                     lockStatus = false,
                     turboModeEnabled = false,
                     lowBatteryLimitBypassed = false,
-                    customMaxSpeed = 55f,
+                    customMaxSpeed = 120f,
                     cruiseControlEnabled = false,
                     zeroStartEnabled = false,
                     kersEnabled = true,
