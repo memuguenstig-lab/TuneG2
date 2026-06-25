@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -12,6 +13,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -39,6 +41,10 @@ import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.ArrowDropUp
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.material3.Button
@@ -121,13 +127,14 @@ fun DashboardScreen(
         }
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
+    Box(modifier = modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
         // Connection & Record Status
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -177,10 +184,25 @@ fun DashboardScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        if (connState == ConnectionState.CONNECTED) {
+            DriveModePresetsCard(
+                currentSpeedLimit = telemetry.customMaxSpeed,
+                isTurbo = telemetry.turboModeEnabled,
+                isDual = telemetry.dualMotorEnabled,
+                onPresetSelected = { viewModel.applyDriveModePreset(it) }
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
         // Basic Info grid (Volt, Amps, Temp, Mileage)
         TelemetryGridSection(telemetry)
 
         Spacer(modifier = Modifier.height(16.dp))
+
+        if (connState == ConnectionState.CONNECTED) {
+            BatteryDiagnosticsCard(telemetry = telemetry)
+            Spacer(modifier = Modifier.height(16.dp))
+        }
 
         // Interactive control cards (Gears, Dual Motor, Lock, Light)
         if (connState == ConnectionState.CONNECTED) {
@@ -282,6 +304,13 @@ fun DashboardScreen(
                     }
                 }
             }
+        }
+    }
+
+        if (telemetry.lockStatus && connState == ConnectionState.CONNECTED) {
+            PinLockScreen(
+                onUnlockSuccess = { viewModel.toggleLock(false) }
+            )
         }
     }
 }
@@ -1593,6 +1622,445 @@ fun SimulatorControlCard(
                     fontWeight = FontWeight.Black,
                     style = MaterialTheme.typography.bodyMedium
                 )
+            }
+        }
+    }
+}
+
+@Composable
+fun DriveModePresetsCard(
+    currentSpeedLimit: Float,
+    isTurbo: Boolean,
+    isDual: Boolean,
+    onPresetSelected: (String) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "FAHRPROFIL-SCHNELLWAHL",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Row of Profiles
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                val modes = listOf(
+                    Triple("ECO", "20 km/h", Color(0xFF4CAF50)),
+                    Triple("STVZO", "22 km/h", Color(0xFF2196F3)),
+                    Triple("SPORT", "38 km/h", Color(0xFFFF9800)),
+                    Triple("RACE", "55 km/h", Color(0xFFE91E63))
+                )
+
+                modes.forEach { (name, label, color) ->
+                    val isActive = when (name) {
+                        "ECO" -> currentSpeedLimit == 20f && !isTurbo && !isDual
+                        "STVZO" -> currentSpeedLimit == 22f && !isTurbo && !isDual
+                        "SPORT" -> currentSpeedLimit == 38f && !isTurbo && isDual
+                        "RACE" -> currentSpeedLimit == 55f && isTurbo && isDual
+                        else -> false
+                    }
+
+                    Button(
+                        onClick = { onPresetSelected(if (name == "STVZO") "DE_STVZO" else name) },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp)
+                            .testTag("preset_${name.lowercase()}_button"),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isActive) color.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                            contentColor = if (isActive) color else MaterialTheme.colorScheme.onSurface
+                        ),
+                        border = BorderStroke(
+                            width = if (isActive) 1.5.dp else 1.dp,
+                            color = if (isActive) color else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(4.dp)
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = name,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 12.sp
+                            )
+                            Text(
+                                text = label,
+                                fontSize = 9.sp,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (isActive) color.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun BatteryDiagnosticsCard(telemetry: ScooterTelemetry) {
+    var expanded by remember { mutableStateOf(false) }
+
+    // Range estimation based on battery percent and speed profile
+    val rangeFactor = when {
+        telemetry.customMaxSpeed <= 20f -> 0.90f // ECO: up to 90km
+        telemetry.customMaxSpeed <= 22f -> 0.82f // STVZO: up to 82km
+        telemetry.customMaxSpeed <= 38f -> 0.58f // SPORT: up to 58km
+        else -> 0.36f // RACE: up to 36km
+    }
+
+    val estimatedRange = telemetry.batteryPercent * rangeFactor
+    val cellCount = 13
+    val avgCellVolt = telemetry.voltage / cellCount
+
+    // Generate simulated balance values that fluctuate slightly with time
+    val timeMillis = System.currentTimeMillis()
+    val cellVoltages = remember(telemetry.voltage, timeMillis / 4000) {
+        List(cellCount) { index ->
+            val offset = when (index) {
+                0 -> 0.008f
+                1 -> -0.012f
+                2 -> 0.005f
+                3 -> 0.014f
+                4 -> -0.006f
+                5 -> 0.002f
+                6 -> -0.015f
+                7 -> 0.009f
+                8 -> -0.003f
+                9 -> 0.011f
+                10 -> -0.007f
+                11 -> 0.004f
+                12 -> -0.002f
+                else -> 0f
+            }
+            val dynamicFluct = (Math.sin(timeMillis.toDouble() / 1500.0 + index) * 0.0015).toFloat()
+            (avgCellVolt + offset + dynamicFluct).coerceIn(3.0f, 4.25f)
+        }
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.BatteryChargingFull,
+                        contentDescription = "Battery Diagnostics",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "BATTERIE-DIAGNOSE & BMS",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                IconButton(
+                    onClick = { expanded = !expanded },
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = if (expanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
+                        contentDescription = "Toggle Expand",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Range and dynamic state Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text(
+                        text = "RESTREICHWEITE EST.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                    )
+                    Text(
+                        text = String.format("%.1f km", estimatedRange),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = "ZELLEN-DRIFT",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                    )
+                    val delta = cellVoltages.maxOrNull()!! - cellVoltages.minOrNull()!!
+                    Text(
+                        text = String.format("%.0f mV Δ", delta * 1000),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = if (delta < 0.015f) Color(0xFF4CAF50) else if (delta < 0.035f) Color(0xFFFF9800) else Color(0xFFF44336)
+                    )
+                }
+            }
+
+            // Expanded Cell View
+            if (expanded) {
+                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "13S LI-ION INDIVIDUELLES MONITORING (48V PACK)",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    val chunks = cellVoltages.chunked(4)
+                    chunks.forEachIndexed { rowIndex, chunk ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            chunk.forEachIndexed { colIndex, voltage ->
+                                val cellNum = rowIndex * 4 + colIndex + 1
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .background(
+                                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
+                                            shape = RoundedCornerShape(6.dp)
+                                        )
+                                        .border(
+                                            width = 1.dp,
+                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.04f),
+                                            shape = RoundedCornerShape(6.dp)
+                                        )
+                                        .padding(horizontal = 6.dp, vertical = 6.dp)
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                                        Text(
+                                            text = String.format("Z%02d", cellNum),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontSize = 8.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                        )
+                                        Text(
+                                            text = String.format("%.3fV", voltage),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Black,
+                                            color = if (voltage > 3.7f) MaterialTheme.colorScheme.onSurface else Color(0xFFFF9800)
+                                        )
+
+                                        Spacer(modifier = Modifier.height(3.dp))
+
+                                        val pct = ((voltage - 3.0f) / 1.2f).coerceIn(0f, 1f)
+                                        LinearProgressIndicator(
+                                            progress = { pct },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(3.dp),
+                                            color = if (pct > 0.5f) Color(0xFF4CAF50) else if (pct > 0.2f) Color(0xFFFF9800) else Color(0xFFF44336),
+                                            trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f)
+                                        )
+                                    }
+                                }
+                            }
+
+                            if (chunk.size < 4) {
+                                repeat(4 - chunk.size) {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PinLockScreen(
+    onUnlockSuccess: () -> Unit
+) {
+    var enteredPin by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf("") }
+
+    val correctPin = "1234"
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.94f))
+            .padding(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(
+                imageVector = Icons.Default.Lock,
+                contentDescription = "Wegfahrsperre Aktiv",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .size(80.dp)
+                    .padding(bottom = 16.dp)
+            )
+
+            Text(
+                text = "WEGFAHRSPERRE AKTIV",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Black,
+                color = Color.White,
+                letterSpacing = 2.sp
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "Bitte gib den 4-stelligen PIN-Code ein, um den KuKirin G2 Controller freizuschalten.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.White.copy(alpha = 0.6f),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                repeat(4) { index ->
+                    val isFilled = index < enteredPin.length
+                    Box(
+                        modifier = Modifier
+                            .size(20.dp)
+                            .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                            .background(
+                                color = if (isFilled) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                shape = CircleShape
+                            )
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (errorMessage.isNotEmpty()) {
+                Text(
+                    text = errorMessage,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Bold
+                )
+            } else {
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            val buttons = listOf(
+                listOf("1", "2", "3"),
+                listOf("4", "5", "6"),
+                listOf("7", "8", "9"),
+                listOf("C", "0", "⌫")
+            )
+
+            Column(
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                buttons.forEach { row ->
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(24.dp)
+                    ) {
+                        row.forEach { char ->
+                            Button(
+                                onClick = {
+                                    when (char) {
+                                        "C" -> {
+                                            enteredPin = ""
+                                            errorMessage = ""
+                                        }
+                                        "⌫" -> {
+                                            if (enteredPin.isNotEmpty()) {
+                                                enteredPin = enteredPin.dropLast(1)
+                                            }
+                                            errorMessage = ""
+                                        }
+                                        else -> {
+                                            if (enteredPin.length < 4) {
+                                                enteredPin += char
+                                            }
+
+                                            if (enteredPin.length == 4) {
+                                                if (enteredPin == correctPin) {
+                                                    onUnlockSuccess()
+                                                } else {
+                                                    errorMessage = "Falscher PIN-Code! Zugriff verweigert."
+                                                    enteredPin = ""
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                modifier = Modifier
+                                    .size(68.dp)
+                                    .testTag("pin_pad_${if (char == "⌫") "backspace" else if (char == "C") "clear" else char}"),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (char == "C" || char == "⌫") Color.White.copy(alpha = 0.08f) else Color.White.copy(alpha = 0.15f),
+                                    contentColor = Color.White
+                                ),
+                                shape = CircleShape,
+                                contentPadding = PaddingValues(0.dp)
+                            ) {
+                                Text(
+                                    text = char,
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }

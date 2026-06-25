@@ -14,6 +14,9 @@ import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
+import android.media.AudioFormat
+import android.media.AudioManager
+import android.media.AudioTrack
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -86,6 +89,7 @@ class ScooterBleManager(private val context: Context) {
     // Simulation & Management Coroutines
     private val scope = CoroutineScope(Dispatchers.Default)
     private var simulationJob: Job? = null
+    private var soundSynthJob: Job? = null
     private var scanTimeoutHandler = Handler(Looper.getMainLooper())
 
     // Simulation Variables (State)
@@ -105,6 +109,7 @@ class ScooterBleManager(private val context: Context) {
         _isSimulationMode.value = !hasBt
         
         startSimulationLoop()
+        startSoundSynth()
         if (!hasBt) {
             connectToSimulatedDevice("F4:12:FA:82:11:03")
         }
@@ -787,6 +792,122 @@ class ScooterBleManager(private val context: Context) {
         isSimulatingRide = false
         simulationJob?.cancel()
         simulationJob = null
+    }
+
+    private fun startSoundSynth() {
+        if (soundSynthJob != null) return
+        soundSynthJob = scope.launch(Dispatchers.Default) {
+            val sampleRate = 22050
+            val bufferSize = AudioTrack.getMinBufferSize(
+                sampleRate,
+                AudioFormat.CHANNEL_OUT_MONO,
+                AudioFormat.ENCODING_PCM_16BIT
+            )
+            if (bufferSize <= 0) return@launch
+
+            var audioTrack: AudioTrack? = null
+            val shortBuffer = ShortArray(512)
+            var phase = 0.0
+            var subPhase = 0.0
+
+            try {
+                while (isActive) {
+                    val currentTelemetry = _telemetry.value
+                    val isSoundOn = currentTelemetry.soundSimulationEnabled &&
+                                   _connectionState.value == ConnectionState.CONNECTED
+
+                    if (!isSoundOn) {
+                        if (audioTrack != null) {
+                            try {
+                                audioTrack.stop()
+                                audioTrack.release()
+                            } catch (e: Exception) {
+                                // ignore
+                            }
+                            audioTrack = null
+                        }
+                        delay(250)
+                        continue
+                    }
+
+                    if (audioTrack == null) {
+                        try {
+                            audioTrack = AudioTrack(
+                                AudioManager.STREAM_MUSIC,
+                                sampleRate,
+                                AudioFormat.CHANNEL_OUT_MONO,
+                                AudioFormat.ENCODING_PCM_16BIT,
+                                bufferSize,
+                                AudioTrack.MODE_STREAM
+                            )
+                            audioTrack.play()
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to initialize AudioTrack", e)
+                            delay(1000)
+                            continue
+                        }
+                    }
+
+                    val speed = currentTelemetry.speedKmh
+                    // Frequency ramps up based on speed (45Hz to 380Hz)
+                    val baseFreq = 42.0 + (speed * 6.5)
+                    val currentDraw = currentTelemetry.currentAmps
+                    val loadAcc = (currentDraw / 32f).coerceIn(0f, 1f)
+
+                    val dt = 1.0 / sampleRate
+
+                    for (i in shortBuffer.indices) {
+                        // Core electric whine
+                        val angle = 2.0 * Math.PI * baseFreq * phase
+                        val sinValue = Math.sin(angle)
+
+                        // Growling triangle/sawtooth harmonic under acceleration/load
+                        val triValue = if (((phase * baseFreq * 2.0) % 1.0) < 0.5) {
+                            ((phase * baseFreq * 2.0) % 1.0) * 4.0 - 1.0
+                        } else {
+                            3.0 - ((phase * baseFreq * 2.0) % 1.0) * 4.0
+                        }
+
+                        // Sub-bass rumble for beefy low-end feel
+                        val subAngle = 2.0 * Math.PI * (baseFreq * 0.5) * subPhase
+                        val subValue = Math.sin(subAngle)
+
+                        // Dynamic blending
+                        val synthValue = (sinValue * 0.25) + (triValue * 0.12 * loadAcc) + (subValue * 0.3)
+                        
+                        // Volume is quieter at idle, louder with speed/throttle
+                        val volumeScale = 0.12 + (speed / 55.0).coerceIn(0.0, 0.38) + (loadAcc * 0.1)
+                        val sample = (synthValue * Short.MAX_VALUE * volumeScale).toInt()
+                            .coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
+
+                        shortBuffer[i] = sample.toShort()
+
+                        phase += dt
+                        subPhase += dt
+                        if (phase > 1.0) phase -= 1.0
+                        if (subPhase > 1.0) subPhase -= 1.0
+                    }
+
+                    audioTrack.write(shortBuffer, 0, shortBuffer.size)
+                    // Sleep tiny bit to let OS audio thread catch up
+                    delay(15)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "AudioTrack loop exception", e)
+            } finally {
+                try {
+                    audioTrack?.stop()
+                    audioTrack?.release()
+                } catch (e: Exception) {
+                    // ignore
+                }
+            }
+        }
+    }
+
+    private fun stopSoundSynth() {
+        soundSynthJob?.cancel()
+        soundSynthJob = null
     }
 
     private fun startSimulatedScan() {

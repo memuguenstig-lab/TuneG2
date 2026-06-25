@@ -128,6 +128,51 @@ class ScooterViewModel(
     fun toggleSoftStart(enabled: Boolean) = bleManager.toggleSoftStart(enabled)
     fun toggleReverseGear(enabled: Boolean) = bleManager.toggleReverseGear(enabled)
     fun toggleSoundSimulation(enabled: Boolean) = bleManager.toggleSoundSimulation(enabled)
+
+    fun applyDriveModePreset(presetName: String) {
+        when (presetName) {
+            "ECO" -> {
+                bleManager.setCustomMaxSpeed(20f)
+                bleManager.toggleSoftStart(true)
+                bleManager.toggleDualMotor(false)
+                bleManager.toggleTurboMode(false)
+                bleManager.toggleZeroStart(false)
+                bleManager.toggleKers(true)
+                bleManager.toggleSpeedLimit(false)
+                bleManager.setGear(1)
+            }
+            "DE_STVZO" -> {
+                bleManager.setCustomMaxSpeed(22f)
+                bleManager.toggleSoftStart(true)
+                bleManager.toggleDualMotor(false)
+                bleManager.toggleTurboMode(false)
+                bleManager.toggleZeroStart(false)
+                bleManager.toggleKers(true)
+                bleManager.toggleSpeedLimit(false)
+                bleManager.setGear(2)
+            }
+            "SPORT" -> {
+                bleManager.setCustomMaxSpeed(38f)
+                bleManager.toggleSoftStart(false)
+                bleManager.toggleDualMotor(true)
+                bleManager.toggleTurboMode(false)
+                bleManager.toggleZeroStart(true)
+                bleManager.toggleKers(true)
+                bleManager.toggleSpeedLimit(true)
+                bleManager.setGear(3)
+            }
+            "RACE" -> {
+                bleManager.setCustomMaxSpeed(55f)
+                bleManager.toggleSoftStart(false)
+                bleManager.toggleDualMotor(true)
+                bleManager.toggleTurboMode(true)
+                bleManager.toggleZeroStart(true)
+                bleManager.toggleKers(false)
+                bleManager.toggleSpeedLimit(true)
+                bleManager.setGear(3)
+            }
+        }
+    }
     
     fun flashFirmwareAdjustment(
         customSpeed: Float,
