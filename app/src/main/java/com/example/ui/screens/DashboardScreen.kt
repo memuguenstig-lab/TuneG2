@@ -35,6 +35,10 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.BatteryChargingFull
+import androidx.compose.material.icons.filled.DirectionsRun
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.material3.Button
@@ -161,7 +165,9 @@ fun DashboardScreen(
         SpeedometerSection(
             speed = telemetry.speedKmh,
             maxSpeed = calculatedMaxSpeed,
-            turboActive = telemetry.turboModeEnabled
+            turboActive = telemetry.turboModeEnabled,
+            reverseActive = telemetry.reverseGearEnabled,
+            soundActive = telemetry.soundSimulationEnabled
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -184,7 +190,17 @@ fun DashboardScreen(
                 onToggleDual = { viewModel.toggleDualMotor(it) },
                 onToggleUnlock = { viewModel.toggleSpeedLimit(it) },
                 onToggleLight = { viewModel.toggleLight(it) },
-                onToggleLock = { viewModel.toggleLock(it) }
+                onToggleLock = { viewModel.toggleLock(it) },
+                onToggleTurbo = { viewModel.toggleTurboMode(it) },
+                onToggleLowBatteryBypass = { viewModel.toggleLowBatteryLimit(it) },
+                onToggleCruiseControl = { viewModel.toggleCruiseControl(it) },
+                onToggleZeroStart = { viewModel.toggleZeroStart(it) },
+                onToggleKers = { viewModel.toggleKers(it) },
+                onToggleTempBypass = { viewModel.toggleTempProtectionBypass(it) },
+                onToggleAntiTheft = { viewModel.toggleAntiTheft(it) },
+                onToggleSoftStart = { viewModel.toggleSoftStart(it) },
+                onToggleReverseGear = { viewModel.toggleReverseGear(it) },
+                onToggleSoundSimulation = { viewModel.toggleSoundSimulation(it) }
             )
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -239,6 +255,31 @@ fun DashboardScreen(
                         textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                     )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = { viewModel.setSimulationMode(true) },
+                        modifier = Modifier
+                            .fillMaxWidth(0.8f)
+                            .height(44.dp)
+                            .testTag("start_sim_from_dashboard_button"),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = Color.Black
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Sim Mode",
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Simulationsmodus starten",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
+                    }
                 }
             }
         }
@@ -383,7 +424,13 @@ fun ErrorAlertCard(errors: List<String>) {
 }
 
 @Composable
-fun SpeedometerSection(speed: Float, maxSpeed: Float, turboActive: Boolean = false) {
+fun SpeedometerSection(
+    speed: Float,
+    maxSpeed: Float,
+    turboActive: Boolean = false,
+    reverseActive: Boolean = false,
+    soundActive: Boolean = false
+) {
     val animatedSpeed by animateFloatAsState(
         targetValue = speed,
         animationSpec = tween(durationMillis = 150),
@@ -470,27 +517,88 @@ fun SpeedometerSection(speed: Float, maxSpeed: Float, turboActive: Boolean = fal
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
             )
             
-            if (turboActive) {
-                Spacer(modifier = Modifier.height(4.dp))
-                Box(
-                    modifier = Modifier
-                        .background(
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                            shape = RoundedCornerShape(4.dp)
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                if (reverseActive) {
+                    Box(
+                        modifier = Modifier
+                            .background(
+                                color = MaterialTheme.colorScheme.error.copy(alpha = 0.15f),
+                                shape = RoundedCornerShape(4.dp)
+                            )
+                            .border(
+                                width = 1.dp,
+                                color = MaterialTheme.colorScheme.error,
+                                shape = RoundedCornerShape(4.dp)
+                            )
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "RÜCKWÄRTS (R)",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Black,
+                            color = MaterialTheme.colorScheme.error
                         )
-                        .border(
-                            width = 1.dp,
-                            color = MaterialTheme.colorScheme.primary,
-                            shape = RoundedCornerShape(4.dp)
+                    }
+                }
+                if (turboActive) {
+                    Box(
+                        modifier = Modifier
+                            .background(
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                shape = RoundedCornerShape(4.dp)
+                            )
+                            .border(
+                                width = 1.dp,
+                                color = MaterialTheme.colorScheme.primary,
+                                shape = RoundedCornerShape(4.dp)
+                            )
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "TURBO",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Black,
+                            color = MaterialTheme.colorScheme.primary
                         )
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                ) {
-                    Text(
-                        text = "TURBO",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Black,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    }
+                }
+                if (soundActive) {
+                    Box(
+                        modifier = Modifier
+                            .background(
+                                color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f),
+                                shape = RoundedCornerShape(4.dp)
+                            )
+                            .border(
+                                width = 1.dp,
+                                color = MaterialTheme.colorScheme.secondary,
+                                shape = RoundedCornerShape(4.dp)
+                            )
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.VolumeUp,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.secondary,
+                                modifier = Modifier.size(10.dp)
+                            )
+                            Text(
+                                text = "SOUND SYNTH",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Black,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -712,7 +820,17 @@ fun ControlCenterCard(
     onToggleDual: (Boolean) -> Unit,
     onToggleUnlock: (Boolean) -> Unit,
     onToggleLight: (Boolean) -> Unit,
-    onToggleLock: (Boolean) -> Unit
+    onToggleLock: (Boolean) -> Unit,
+    onToggleTurbo: (Boolean) -> Unit,
+    onToggleLowBatteryBypass: (Boolean) -> Unit,
+    onToggleCruiseControl: (Boolean) -> Unit,
+    onToggleZeroStart: (Boolean) -> Unit,
+    onToggleKers: (Boolean) -> Unit,
+    onToggleTempBypass: (Boolean) -> Unit,
+    onToggleAntiTheft: (Boolean) -> Unit,
+    onToggleSoftStart: (Boolean) -> Unit,
+    onToggleReverseGear: (Boolean) -> Unit,
+    onToggleSoundSimulation: (Boolean) -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -810,13 +928,22 @@ fun ControlCenterCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Control switches
+            // Section 1: Tuning & Performance
+            Text(
+                text = "TUNING & PERFORMANCE",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Switch: Dual Motor
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Default.FlashOn,
                         contentDescription = "Dual Motor",
@@ -831,7 +958,7 @@ fun ControlCenterCard(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Schaltet beide Motoren zu für max. Drehmoment",
+                            text = "Aktiviert beide Motoren für maximales Drehmoment",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
@@ -847,12 +974,13 @@ fun ControlCenterCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            // Switch: Speed Unlock
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Default.Speed,
                         contentDescription = "Speed Unlock",
@@ -862,7 +990,7 @@ fun ControlCenterCard(
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
-                            text = "Sperre aufheben (Tuning)",
+                            text = "Geschwindigkeitssperre aufheben",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold
                         )
@@ -878,6 +1006,394 @@ fun ControlCenterCard(
                     onCheckedChange = onToggleUnlock,
                     colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.tertiary),
                     modifier = Modifier.testTag("tuning_speed_switch")
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Switch: Turbo Mode
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.FlashOn,
+                        contentDescription = "Turbo Mode",
+                        tint = if (telemetry.turboModeEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "Werksseitiger Turbo-Modus",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Schaltet das versteckte Turbo-Leistungsregister frei",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+                Switch(
+                    checked = telemetry.turboModeEnabled,
+                    onCheckedChange = onToggleTurbo,
+                    colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.primary),
+                    modifier = Modifier.testTag("turbo_mode_switch")
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Switch: Low Battery Limit Bypass
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.FlashOn,
+                        contentDescription = "Battery Bypass",
+                        tint = if (telemetry.lowBatteryLimitBypassed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "Akku-Drosselung umgehen",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Verhindert automatische Verlangsamung bei <50% Akku",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+                Switch(
+                    checked = telemetry.lowBatteryLimitBypassed,
+                    onCheckedChange = onToggleLowBatteryBypass,
+                    colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.primary),
+                    modifier = Modifier.testTag("low_battery_bypass_switch")
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Section 2: Assistenzsysteme & Komfort
+            Text(
+                text = "FAHRASSISTENZ & KOMFORT",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Switch: Cruise Control
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Speed,
+                        contentDescription = "Cruise Control",
+                        tint = if (telemetry.cruiseControlEnabled) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "Tempomat (Cruise Control)",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Hält die aktuelle Geschwindigkeit automatisch",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+                Switch(
+                    checked = telemetry.cruiseControlEnabled,
+                    onCheckedChange = onToggleCruiseControl,
+                    colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.secondary),
+                    modifier = Modifier.testTag("cruise_control_switch")
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Switch: Zero Start
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = "Zero Start",
+                        tint = if (telemetry.zeroStartEnabled) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "Direktstart (Zero Start)",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Fahren ohne vorheriges Anschieben (Kickstart aus)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+                Switch(
+                    checked = telemetry.zeroStartEnabled,
+                    onCheckedChange = onToggleZeroStart,
+                    colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.secondary),
+                    modifier = Modifier.testTag("zero_start_switch")
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Switch: KERS (Regenerative braking)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.FlashOn,
+                        contentDescription = "KERS",
+                        tint = if (telemetry.kersEnabled) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "Rekuperation (Motorbremse)",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Gewinnt beim Bremsen & Rollen Energie zurück",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+                Switch(
+                    checked = telemetry.kersEnabled,
+                    onCheckedChange = onToggleKers,
+                    colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.secondary),
+                    modifier = Modifier.testTag("kers_switch")
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Switch: Temp Protection Bypass
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = "Temp Bypass",
+                        tint = if (telemetry.tempProtectionBypassed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "Übertemperaturschutz umgehen",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Verhindert Abschaltung bei starker Hitzebelastung",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+                Switch(
+                    checked = telemetry.tempProtectionBypassed,
+                    onCheckedChange = onToggleTempBypass,
+                    colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.error),
+                    modifier = Modifier.testTag("temp_bypass_switch")
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Section 3: Smart-Systeme & Sicherheit
+            Text(
+                text = "ERWEITERTE FUNKTIONEN & SICHERHEIT",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Switch: Anti-Theft
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Lock,
+                        contentDescription = "Anti-Theft",
+                        tint = if (telemetry.antiTheftEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "Diebstahl-Warnanlage",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Löst akustischen Alarm bei unbefugter Bewegung aus",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+                Switch(
+                    checked = telemetry.antiTheftEnabled,
+                    onCheckedChange = onToggleAntiTheft,
+                    colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.primary),
+                    modifier = Modifier.testTag("anti_theft_switch")
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Switch: Soft Start
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.DirectionsRun,
+                        contentDescription = "Soft Start",
+                        tint = if (telemetry.softStartEnabled) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "Sanfter Anlauf (Soft-Start)",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Reduziert Drehmoment beim Anfahren bei Nässe",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+                Switch(
+                    checked = telemetry.softStartEnabled,
+                    onCheckedChange = onToggleSoftStart,
+                    colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.secondary),
+                    modifier = Modifier.testTag("soft_start_switch")
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Switch: Reverse Gear
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Reverse Gear",
+                        tint = if (telemetry.reverseGearEnabled) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "Rückwärtsgang",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Aktiviert den Elektromotor-Rückwärtslauf (vMax 5 km/h)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+                Switch(
+                    checked = telemetry.reverseGearEnabled,
+                    onCheckedChange = onToggleReverseGear,
+                    colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.tertiary),
+                    modifier = Modifier.testTag("reverse_gear_switch")
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Switch: Sound Simulation
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Lightbulb,
+                        contentDescription = "Sound Simulator",
+                        tint = if (telemetry.soundSimulationEnabled) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "Motorsound-Simulator",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Simuliert futuristisches Triebwerk proportional zur Drehzahl",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+                Switch(
+                    checked = telemetry.soundSimulationEnabled,
+                    onCheckedChange = onToggleSoundSimulation,
+                    colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.secondary),
+                    modifier = Modifier.testTag("sound_simulator_switch")
                 )
             }
 

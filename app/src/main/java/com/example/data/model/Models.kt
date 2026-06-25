@@ -20,6 +20,14 @@ data class ScooterTelemetry(
     val lockStatus: Boolean = false,
     val turboModeEnabled: Boolean = false,
     val lowBatteryLimitBypassed: Boolean = false,
+    val cruiseControlEnabled: Boolean = false,
+    val zeroStartEnabled: Boolean = true,
+    val kersEnabled: Boolean = true,
+    val tempProtectionBypassed: Boolean = false,
+    val antiTheftEnabled: Boolean = false,
+    val softStartEnabled: Boolean = false,
+    val reverseGearEnabled: Boolean = false,
+    val soundSimulationEnabled: Boolean = false,
     val customMaxSpeed: Float = 55f
 )
 

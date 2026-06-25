@@ -571,6 +571,130 @@ class ScooterBleManager(private val context: Context) {
         _telemetry.update { it.copy(customMaxSpeed = speed) }
     }
 
+    fun toggleCruiseControl(enabled: Boolean) {
+        if (_isSimulationMode.value) {
+            _telemetry.update { it.copy(cruiseControlEnabled = enabled) }
+            return
+        }
+
+        val payload = if (enabled) 1 else 0
+        val checksum = (0x01 + 0x0A + payload) and 0xFF
+        val packet = byteArrayOf(
+            0xAA.toByte(), 0x55.toByte(), 0x02.toByte(), 0x01.toByte(), 0x0A.toByte(),
+            payload.toByte(), checksum.toByte()
+        )
+        writeCharacteristic(packet)
+        _telemetry.update { it.copy(cruiseControlEnabled = enabled) }
+    }
+
+    fun toggleZeroStart(enabled: Boolean) {
+        if (_isSimulationMode.value) {
+            _telemetry.update { it.copy(zeroStartEnabled = enabled) }
+            return
+        }
+
+        val payload = if (enabled) 1 else 0
+        val checksum = (0x01 + 0x0B + payload) and 0xFF
+        val packet = byteArrayOf(
+            0xAA.toByte(), 0x55.toByte(), 0x02.toByte(), 0x01.toByte(), 0x0B.toByte(),
+            payload.toByte(), checksum.toByte()
+        )
+        writeCharacteristic(packet)
+        _telemetry.update { it.copy(zeroStartEnabled = enabled) }
+    }
+
+    fun toggleKers(enabled: Boolean) {
+        if (_isSimulationMode.value) {
+            _telemetry.update { it.copy(kersEnabled = enabled) }
+            return
+        }
+
+        val payload = if (enabled) 1 else 0
+        val checksum = (0x01 + 0x0C + payload) and 0xFF
+        val packet = byteArrayOf(
+            0xAA.toByte(), 0x55.toByte(), 0x02.toByte(), 0x01.toByte(), 0x0C.toByte(),
+            payload.toByte(), checksum.toByte()
+        )
+        writeCharacteristic(packet)
+        _telemetry.update { it.copy(kersEnabled = enabled) }
+    }
+
+    fun toggleTempProtectionBypass(bypass: Boolean) {
+        if (_isSimulationMode.value) {
+            _telemetry.update { it.copy(tempProtectionBypassed = bypass) }
+            return
+        }
+
+        val payload = if (bypass) 1 else 0
+        val checksum = (0x01 + 0x0D + payload) and 0xFF
+        val packet = byteArrayOf(
+            0xAA.toByte(), 0x55.toByte(), 0x02.toByte(), 0x01.toByte(), 0x0D.toByte(),
+            payload.toByte(), checksum.toByte()
+        )
+        writeCharacteristic(packet)
+        _telemetry.update { it.copy(tempProtectionBypassed = bypass) }
+    }
+
+    fun toggleAntiTheft(enabled: Boolean) {
+        if (_isSimulationMode.value) {
+            _telemetry.update { it.copy(antiTheftEnabled = enabled) }
+            return
+        }
+        val payload = if (enabled) 1 else 0
+        val checksum = (0x01 + 0x0E + payload) and 0xFF
+        val packet = byteArrayOf(
+            0xAA.toByte(), 0x55.toByte(), 0x02.toByte(), 0x01.toByte(), 0x0E.toByte(),
+            payload.toByte(), checksum.toByte()
+        )
+        writeCharacteristic(packet)
+        _telemetry.update { it.copy(antiTheftEnabled = enabled) }
+    }
+
+    fun toggleSoftStart(enabled: Boolean) {
+        if (_isSimulationMode.value) {
+            _telemetry.update { it.copy(softStartEnabled = enabled) }
+            return
+        }
+        val payload = if (enabled) 1 else 0
+        val checksum = (0x01 + 0x0F + payload) and 0xFF
+        val packet = byteArrayOf(
+            0xAA.toByte(), 0x55.toByte(), 0x02.toByte(), 0x01.toByte(), 0x0F.toByte(),
+            payload.toByte(), checksum.toByte()
+        )
+        writeCharacteristic(packet)
+        _telemetry.update { it.copy(softStartEnabled = enabled) }
+    }
+
+    fun toggleReverseGear(enabled: Boolean) {
+        if (_isSimulationMode.value) {
+            _telemetry.update { it.copy(reverseGearEnabled = enabled) }
+            return
+        }
+        val payload = if (enabled) 1 else 0
+        val checksum = (0x01 + 0x10 + payload) and 0xFF
+        val packet = byteArrayOf(
+            0xAA.toByte(), 0x55.toByte(), 0x02.toByte(), 0x01.toByte(), 0x10.toByte(),
+            payload.toByte(), checksum.toByte()
+        )
+        writeCharacteristic(packet)
+        _telemetry.update { it.copy(reverseGearEnabled = enabled) }
+    }
+
+    fun toggleSoundSimulation(enabled: Boolean) {
+        if (_isSimulationMode.value) {
+            _telemetry.update { it.copy(soundSimulationEnabled = enabled) }
+            return
+        }
+        val payload = if (enabled) 1 else 0
+        val checksum = (0x01 + 0x11 + payload) and 0xFF
+        val packet = byteArrayOf(
+            0xAA.toByte(), 0x55.toByte(), 0x02.toByte(), 0x01.toByte(), 0x11.toByte(),
+            payload.toByte(), checksum.toByte()
+        )
+        writeCharacteristic(packet)
+        _telemetry.update { it.copy(soundSimulationEnabled = enabled) }
+    }
+
     fun flashFirmwareAdjustment(
         customSpeed: Float,
         turbo: Boolean,
@@ -725,6 +849,10 @@ class ScooterBleManager(private val context: Context) {
                     turboModeEnabled = false,
                     lowBatteryLimitBypassed = false,
                     customMaxSpeed = 55f,
+                    cruiseControlEnabled = false,
+                    zeroStartEnabled = false,
+                    kersEnabled = true,
+                    tempProtectionBypassed = false,
                     errorCodes = emptyList()
                 )
             }
@@ -783,8 +911,13 @@ class ScooterBleManager(private val context: Context) {
             }
 
             // 2. Adjust target speed based on throttle/brake inputs
-            if (currentThrottle > 0f && !currentBrake && !current.lockStatus) {
-                targetSpeed = maxSpeedLimit * currentThrottle
+            val throttleWorking = current.zeroStartEnabled || current.speedKmh >= 3.0f || current.reverseGearEnabled
+            if (currentThrottle > 0f && !currentBrake && !current.lockStatus && throttleWorking) {
+                if (current.reverseGearEnabled) {
+                    targetSpeed = 5.0f * currentThrottle // reverse speed limit
+                } else {
+                    targetSpeed = maxSpeedLimit * currentThrottle
+                }
             } else {
                 targetSpeed = 0f
             }
@@ -795,8 +928,11 @@ class ScooterBleManager(private val context: Context) {
             } else {
                 if (current.turboModeEnabled) 2.0f else 1.2f
             }
-            val accelForce = 0.08f * accelCoefficient * (1.5f - (current.speedKmh / maxSpeedLimit)) // Less force at higher speed
-            val brakeForce = 0.6f
+            var accelForce = 0.08f * accelCoefficient * (1.5f - (current.speedKmh / maxSpeedLimit)) // Less force at higher speed
+            if (current.softStartEnabled) {
+                accelForce *= 0.4f // Gentler acceleration ramp
+            }
+            val brakeForce = if (current.kersEnabled) 0.8f else 0.4f
 
             var speed = current.speedKmh
             if (currentBrake) {
@@ -804,8 +940,15 @@ class ScooterBleManager(private val context: Context) {
             } else if (speed < targetSpeed) {
                 speed = min(targetSpeed, speed + accelForce)
             } else if (speed > targetSpeed) {
-                // Wind resistance coasting down
-                speed = max(targetSpeed, speed - 0.05f)
+                // Wind resistance/KERS/Cruise control coasting down
+                val coastDecel = if (current.cruiseControlEnabled && currentThrottle == 0f && speed > 5f) {
+                    0.005f // Cruise control keeps speed almost constant
+                } else if (current.kersEnabled) {
+                    0.08f // KERS drag
+                } else {
+                    0.03f // Smooth coasting
+                }
+                speed = max(targetSpeed, speed - coastDecel)
             }
 
             // 4. Calculate Current (Amps) and Power (Watts)
@@ -817,7 +960,7 @@ class ScooterBleManager(private val context: Context) {
             } else 0f
             
             // Add slight regenerative braking current if braking at speed
-            val regenDraw = if (currentBrake && speed > 5.0f) -2.5f else 0f
+            val regenDraw = if (current.kersEnabled && currentBrake && speed > 5.0f) -3.5f else 0f
 
             val rawAmps = baseDraw + accelerationDraw + regenDraw
             val amps = max(-3.0f, min(if (current.dualMotorEnabled) 36f else 22f, rawAmps))
@@ -860,9 +1003,9 @@ class ScooterBleManager(private val context: Context) {
                 updatedErrors.remove("E-04: Unterspannungsschutz")
             }
 
-            if (temp >= 78.0f && !updatedErrors.contains("E-08: Übertemperatur")) {
+            if (temp >= 78.0f && !current.tempProtectionBypassed && !updatedErrors.contains("E-08: Übertemperatur")) {
                 updatedErrors.add("E-08: Übertemperatur")
-            } else if (temp < 72.0f && updatedErrors.contains("E-08: Übertemperatur")) {
+            } else if ((temp < 72.0f || current.tempProtectionBypassed) && updatedErrors.contains("E-08: Übertemperatur")) {
                 updatedErrors.remove("E-08: Übertemperatur")
             }
 

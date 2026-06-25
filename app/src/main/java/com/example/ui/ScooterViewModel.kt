@@ -120,6 +120,14 @@ class ScooterViewModel(
     fun toggleTurboMode(enabled: Boolean) = bleManager.toggleTurboMode(enabled)
     fun toggleLowBatteryLimit(bypass: Boolean) = bleManager.toggleLowBatteryLimit(bypass)
     fun setCustomMaxSpeed(speed: Float) = bleManager.setCustomMaxSpeed(speed)
+    fun toggleCruiseControl(enabled: Boolean) = bleManager.toggleCruiseControl(enabled)
+    fun toggleZeroStart(enabled: Boolean) = bleManager.toggleZeroStart(enabled)
+    fun toggleKers(enabled: Boolean) = bleManager.toggleKers(enabled)
+    fun toggleTempProtectionBypass(bypass: Boolean) = bleManager.toggleTempProtectionBypass(bypass)
+    fun toggleAntiTheft(enabled: Boolean) = bleManager.toggleAntiTheft(enabled)
+    fun toggleSoftStart(enabled: Boolean) = bleManager.toggleSoftStart(enabled)
+    fun toggleReverseGear(enabled: Boolean) = bleManager.toggleReverseGear(enabled)
+    fun toggleSoundSimulation(enabled: Boolean) = bleManager.toggleSoundSimulation(enabled)
     
     fun flashFirmwareAdjustment(
         customSpeed: Float,
