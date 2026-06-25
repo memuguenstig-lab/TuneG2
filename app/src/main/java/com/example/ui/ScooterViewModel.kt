@@ -42,6 +42,7 @@ class ScooterViewModel(
     val connectionState = bleManager.connectionState
     val telemetry = bleManager.telemetry
     val isSimulationMode = bleManager.isSimulationMode
+    val isBluetoothEnabled = bleManager.isBluetoothEnabled
 
     // Saved Rides from Database
     val savedRides: StateFlow<List<RideLog>> = rideRepository.allRides

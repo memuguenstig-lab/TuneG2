@@ -72,7 +72,7 @@ fun ScannerScreen(
     val isScanning by viewModel.isScanning.collectAsState()
     val scannedDevices by viewModel.scannedDevices.collectAsState()
     val connState by viewModel.connectionState.collectAsState()
-    val isSimMode by viewModel.isSimulationMode.collectAsState()
+    val isBluetoothEnabled by viewModel.isBluetoothEnabled.collectAsState()
 
     Column(
         modifier = modifier
@@ -80,20 +80,52 @@ fun ScannerScreen(
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Mode Selector: BLE vs Simulator
-        SimulationToggleCard(isSimMode) { viewModel.setSimulationMode(it) }
-
-        Spacer(modifier = Modifier.height(16.dp))
+        if (!isBluetoothEnabled) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer
+                ),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = "Bluetooth Deaktiviert",
+                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.size(32.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = "Bluetooth ist ausgeschaltet",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        Text(
+                            text = "Aktiviere Bluetooth in den Schnelleinstellungen deines Handys, um deinen KuKirin G2 E-Scooter zu suchen.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
 
         if (connState == ConnectionState.CONNECTED) {
             // Connected Banner
             ConnectedDeviceCard(
-                address = if (isSimMode) "SIMULATOR:00:11:22" else "KuKirin G2 BLE",
+                address = "KuKirin G2 BLE",
                 onDisconnect = { viewModel.disconnect() }
             )
         } else {
             // Search / Scan Area
-            ScanActionRow(isScanning, isSimMode) {
+            ScanActionRow(isScanning, isBluetoothEnabled) {
                 if (isScanning) viewModel.stopScan() else viewModel.startScan()
             }
 
@@ -136,8 +168,7 @@ fun ScannerScreen(
                             style = MaterialTheme.typography.bodyMedium
                         )
                         Text(
-                            text = if (isSimMode) "Klicke auf Suchen, um simulierte Testroller zu laden."
-                                   else "Stelle sicher, dass Bluetooth aktiv ist und dein KuKirin G2 eingeschaltet ist.",
+                            text = "Stelle sicher, dass Bluetooth aktiv ist und dein KuKirin G2 eingeschaltet ist.",
                             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f),
                             style = MaterialTheme.typography.bodySmall,
                             textAlign = TextAlign.Center,
@@ -256,7 +287,7 @@ fun ConnectedDeviceCard(address: String, onDisconnect: () -> Unit) {
 }
 
 @Composable
-fun ScanActionRow(isScanning: Boolean, isSimMode: Boolean, onScanToggle: () -> Unit) {
+fun ScanActionRow(isScanning: Boolean, isBluetoothEnabled: Boolean, onScanToggle: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -264,7 +295,7 @@ fun ScanActionRow(isScanning: Boolean, isSimMode: Boolean, onScanToggle: () -> U
     ) {
         Column {
             Text(
-                text = if (isSimMode) "Simulierter Scanner" else "BLE Scanner",
+                text = if (isBluetoothEnabled) "BLE Scanner" else "BLE Scanner (Bluetooth aus)",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -276,6 +307,7 @@ fun ScanActionRow(isScanning: Boolean, isSimMode: Boolean, onScanToggle: () -> U
         }
         Button(
             onClick = onScanToggle,
+            enabled = isBluetoothEnabled || isScanning,
             shape = RoundedCornerShape(10.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = if (isScanning) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary

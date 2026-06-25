@@ -83,8 +83,21 @@ class ScooterBleManager(private val context: Context) {
     private val _telemetry = MutableStateFlow(ScooterTelemetry())
     val telemetry: StateFlow<ScooterTelemetry> = _telemetry.asStateFlow()
 
-    private val _isSimulationMode = MutableStateFlow(true) // Default to true for easy emulator testing
+    private val _isSimulationMode = MutableStateFlow(false) // ALWAYS FALSE, simulation disabled
     val isSimulationMode: StateFlow<Boolean> = _isSimulationMode.asStateFlow()
+
+    private val _isBluetoothEnabled = MutableStateFlow(bluetoothAdapter?.isEnabled ?: false)
+    val isBluetoothEnabled: StateFlow<Boolean> = _isBluetoothEnabled.asStateFlow()
+
+    private val bluetoothStateReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: android.content.Intent) {
+            val action = intent.action
+            if (action == BluetoothAdapter.ACTION_STATE_CHANGED) {
+                val state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
+                _isBluetoothEnabled.value = (state == BluetoothAdapter.STATE_ON)
+            }
+        }
+    }
 
     // Simulation & Management Coroutines
     private val scope = CoroutineScope(Dispatchers.Default)
@@ -103,42 +116,24 @@ class ScooterBleManager(private val context: Context) {
     private var isSimulatingRide = false
 
     init {
-        // If Bluetooth is supported and enabled, we can start with simulation = false,
-        // but default to simulation = true for emulator compatibility out of the box.
-        val hasBt = bluetoothAdapter != null && bluetoothAdapter.isEnabled
-        _isSimulationMode.value = !hasBt
-        
-        startSimulationLoop()
-        startSoundSynth()
-        if (!hasBt) {
-            connectToSimulatedDevice("F4:12:FA:82:11:03")
+        try {
+            val filter = android.content.IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
+            context.applicationContext.registerReceiver(bluetoothStateReceiver, filter)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to register bluetoothStateReceiver: ${e.message}")
         }
+        startSoundSynth()
     }
 
     fun setSimulationMode(enabled: Boolean) {
-        _isSimulationMode.value = enabled
-        if (enabled) {
-            startSimulationLoop()
-            connectToSimulatedDevice("F4:12:FA:82:11:03")
-        } else {
-            stopSimulationLoop()
-            disconnect()
-            _telemetry.update { ScooterTelemetry() } // Reset telemetry
-        }
+        _isSimulationMode.value = false
     }
 
     // --- BLE Scan Operations ---
     fun startScan() {
-        if (_isSimulationMode.value) {
-            startSimulatedScan()
-            return
-        }
-
         val adapter = bluetoothAdapter
-        if (adapter == null || !adapter.isEnabled) {
-            Log.e(TAG, "Bluetooth not available or disabled. Falling back to simulation.")
-            setSimulationMode(true)
-            startSimulatedScan()
+        if (adapter == null) {
+            Log.e(TAG, "Bluetooth not available.")
             return
         }
 

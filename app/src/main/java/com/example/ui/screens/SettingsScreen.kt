@@ -65,7 +65,6 @@ fun SettingsScreen(
     modifier: Modifier = Modifier
 ) {
     val telemetry by viewModel.telemetry.collectAsState()
-    val isSimMode by viewModel.isSimulationMode.collectAsState()
     val connState by viewModel.connectionState.collectAsState()
 
     var showCodeSnippet by remember { mutableStateOf(false) }
@@ -136,78 +135,7 @@ fun SettingsScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
 
-        // 2. Error Simulator Panel (Only when simulation mode & connected)
-        if (isSimMode && connState == com.example.service.ConnectionState.CONNECTED) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "FEHLER-SIMULATOR (TESTZWECKE)",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                    )
-                    Text(
-                        text = "Simuliere Fehlercodes des KuKirin G2, um zu prüfen wie diese in der App übersetzt und dargestellt werden.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Button(
-                            onClick = { viewModel.triggerSimulatedError("E-01: Hall-Sensor Fehler") },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(38.dp)
-                                .testTag("sim_error_1"),
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer),
-                            shape = RoundedCornerShape(8.dp),
-                            contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)
-                        ) {
-                            Text("Sim. Hall (E-01)", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onErrorContainer)
-                        }
-
-                        Button(
-                            onClick = { viewModel.triggerSimulatedError("E-08: Übertemperatur") },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(38.dp)
-                                .testTag("sim_error_8"),
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer),
-                            shape = RoundedCornerShape(8.dp),
-                            contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)
-                        ) {
-                            Text("Sim. Temp (E-08)", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onErrorContainer)
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Button(
-                        onClick = { viewModel.triggerSimulatedError(null) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(38.dp)
-                            .testTag("clear_sim_error"),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text("Alle Fehler zurücksetzen", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = Color.Black)
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-        }
 
         // 3. Official KuKirin Error Codes Guide
         Card(

@@ -106,26 +106,6 @@ fun DashboardScreen(
     val isRecording by viewModel.isRecording.collectAsState()
     val rideSec by viewModel.rideSeconds.collectAsState()
     val rideDist by viewModel.rideDistance.collectAsState()
-    val isSimMode by viewModel.isSimulationMode.collectAsState()
-
-    var simulateThrottleValue by remember { mutableFloatStateOf(0f) }
-    var steeringAngle by remember { mutableFloatStateOf(0f) }
-
-    // Sync physical slider / throttle value with manager
-    LaunchedEffect(simulateThrottleValue) {
-        if (isSimMode) {
-            viewModel.simulateThrottle(simulateThrottleValue)
-        }
-    }
-
-    // Reset throttle and steering when disconnected or simulation mode changes
-    LaunchedEffect(connState, isSimMode) {
-        if (connState != ConnectionState.CONNECTED) {
-            simulateThrottleValue = 0f
-            steeringAngle = 0f
-            viewModel.simulateThrottle(0f)
-        }
-    }
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(
@@ -142,7 +122,7 @@ fun DashboardScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Status Tag
-            ConnectionStatusBadge(connState, isSimMode)
+            ConnectionStatusBadge(connState)
 
             // Active Trip Recording Controls
             if (connState == ConnectionState.CONNECTED) {
@@ -180,7 +160,7 @@ fun DashboardScreen(
         Spacer(modifier = Modifier.height(12.dp))
 
         // Visual handlebar/steering angle section
-        HandlebarSection(angle = steeringAngle)
+        HandlebarSection(angle = 0f)
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -226,22 +206,6 @@ fun DashboardScreen(
             )
 
             Spacer(modifier = Modifier.height(20.dp))
-
-            // Interactive emulator throttle (only active in simulation or if connected)
-            if (isSimMode) {
-                SimulatorControlCard(
-                    throttleValue = simulateThrottleValue,
-                    onThrottleChange = { simulateThrottleValue = it },
-                    onBrakeChange = { pressed ->
-                        viewModel.simulateBrake(pressed)
-                        if (pressed) {
-                            simulateThrottleValue = 0f
-                        }
-                    },
-                    steeringAngle = steeringAngle,
-                    onSteeringChange = { steeringAngle = it }
-                )
-            }
         } else {
             // Friendly disconnected state notice
             Card(
@@ -272,36 +236,11 @@ fun DashboardScreen(
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = "Suche im Bluetooth-Tab nach verfügbaren KuKirin G2 E-Scootern oder aktiviere den Simulationsmodus.",
+                        text = "Suche im Bluetooth-Tab nach verfügbaren KuKirin G2 E-Scootern.",
                         style = MaterialTheme.typography.bodySmall,
                         textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(
-                        onClick = { viewModel.setSimulationMode(true) },
-                        modifier = Modifier
-                            .fillMaxWidth(0.8f)
-                            .height(44.dp)
-                            .testTag("start_sim_from_dashboard_button"),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = Color.Black
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Sim Mode",
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Simulationsmodus starten",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
-                        )
-                    }
                 }
             }
         }
@@ -316,14 +255,11 @@ fun DashboardScreen(
 }
 
 @Composable
-fun ConnectionStatusBadge(connState: ConnectionState, isSimMode: Boolean) {
+fun ConnectionStatusBadge(connState: ConnectionState) {
     val (text, color) = when (connState) {
         ConnectionState.DISCONNECTED -> "GETRENNT" to MaterialTheme.colorScheme.error
         ConnectionState.CONNECTING -> "VERBINDET..." to MaterialTheme.colorScheme.secondary
-        ConnectionState.CONNECTED -> {
-            if (isSimMode) "CONNECTED (SIM)" to MaterialTheme.colorScheme.primary
-            else "CONNECTED (BLE)" to MaterialTheme.colorScheme.primary
-        }
+        ConnectionState.CONNECTED -> "VERBUNDEN" to MaterialTheme.colorScheme.primary
     }
 
     Surface(

@@ -65,7 +65,7 @@ class MainActivity : ComponentActivity() {
         if (allGranted) {
             Toast.makeText(this, "Bluetooth-Berechtigungen erteilt!", Toast.LENGTH_SHORT).show()
         } else {
-            Toast.makeText(this, "Bluetooth eingeschränkt. Simulationsmodus nutzen.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Bluetooth eingeschränkt. Bitte in den Einstellungen erteilen.", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -132,8 +132,7 @@ class MainActivity : ComponentActivity() {
         val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             arrayOf(
                 Manifest.permission.BLUETOOTH_SCAN,
-                Manifest.permission.BLUETOOTH_CONNECT,
-                Manifest.permission.ACCESS_FINE_LOCATION
+                Manifest.permission.BLUETOOTH_CONNECT
             )
         } else {
             arrayOf(
