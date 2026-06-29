@@ -28,21 +28,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FlashOn
-import androidx.compose.material.icons.filled.Lightbulb
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.LockOpen
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.filled.Bolt
-import androidx.compose.material.icons.filled.BatteryChargingFull
-import androidx.compose.material.icons.filled.DirectionsRun
-import androidx.compose.material.icons.filled.VolumeUp
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.ArrowDropUp
+import androidx.compose.material.icons.filled.*
+
+import androidx.compose.material3.Slider
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.ui.graphics.drawscope.rotate
@@ -68,6 +56,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -180,7 +169,9 @@ fun DashboardScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         if (connState == ConnectionState.CONNECTED) {
-            BatteryDiagnosticsCard(telemetry = telemetry)
+            AppearanceCard(viewModel)
+            Spacer(modifier = Modifier.height(16.dp))
+            BatteryDiagnosticsCard(telemetry = telemetry, viewModel = viewModel)
             Spacer(modifier = Modifier.height(16.dp))
         }
 
@@ -1321,8 +1312,44 @@ fun DriveModePresetsCard(
     }
 }
 
+
 @Composable
-fun BatteryDiagnosticsCard(telemetry: ScooterTelemetry) {
+fun AppearanceCard(viewModel: ScooterViewModel) {
+    val tachoBrightness by viewModel.tachoBrightness.collectAsStateWithLifecycle()
+    
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "ERSCHEINUNGSBILD",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
+            Spacer(modifier = Modifier.height(14.dp))
+            
+            Text("Tacho Helligkeit")
+            Slider(
+                value = tachoBrightness,
+                onValueChange = { viewModel.setTachoBrightness(it) }
+            )
+            
+            Text("LED Modus")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("Solid", "Flash", "Pulse").forEach { mode ->
+                    Button(onClick = { viewModel.setLedMode(mode) }) { Text(mode) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun BatteryDiagnosticsCard(telemetry: ScooterTelemetry, viewModel: ScooterViewModel) {
     var expanded by remember { mutableStateOf(false) }
 
     // Range estimation based on battery percent and speed profile
@@ -1398,7 +1425,7 @@ fun BatteryDiagnosticsCard(telemetry: ScooterTelemetry) {
                     modifier = Modifier.size(24.dp)
                 ) {
                     Icon(
-                        imageVector = if (expanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
+                        imageVector = if (expanded) Icons.Filled.ArrowDropUp else Icons.Filled.ArrowDropDown,
                         contentDescription = "Toggle Expand",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )

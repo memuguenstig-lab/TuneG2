@@ -391,6 +391,17 @@ fun RideLogItemRow(ride: RideLog, onDelete: () -> Unit) {
             }
 
             IconButton(
+                onClick = { /* TODO: Implement Map View */ },
+                modifier = Modifier.testTag("map_view_button_${ride.id}")
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Map,
+                    contentDescription = "Map View",
+                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            IconButton(
                 onClick = onDelete,
                 modifier = Modifier.testTag("delete_ride_button_${ride.id}")
             ) {

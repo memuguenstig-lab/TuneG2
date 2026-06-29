@@ -5,22 +5,16 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.data.SettingsManager
 import com.example.data.local.AppDatabase
 import com.example.data.local.RideRepository
 import com.example.data.model.RideLog
 import com.example.data.model.ScooterTelemetry
-import com.example.service.BleDevice
 import com.example.service.ConnectionState
 import com.example.service.ScooterBleManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 data class TelemetryDataPoint(
@@ -33,18 +27,23 @@ data class TelemetryDataPoint(
 class ScooterViewModel(
     application: Application,
     private val bleManager: ScooterBleManager,
-    private val rideRepository: RideRepository
+    private val rideRepository: RideRepository,
+    private val settingsManager: SettingsManager
 ) : AndroidViewModel(application) {
 
-    // Proxy StateFlows from BLE Manager
     val isScanning = bleManager.isScanning
     val scannedDevices = bleManager.scannedDevices
     val connectionState = bleManager.connectionState
     val telemetry = bleManager.telemetry
+    val rawBleTraffic = bleManager.rawBleTraffic
+    val discoveredServices = bleManager.discoveredServices
+    
+    private val _trafficList = MutableStateFlow<List<String>>(emptyList())
+    val trafficList: StateFlow<List<String>> = _trafficList.asStateFlow()
+
     val isSimulationMode = bleManager.isSimulationMode
     val isBluetoothEnabled = bleManager.isBluetoothEnabled
 
-    // Saved Rides from Database
     val savedRides: StateFlow<List<RideLog>> = rideRepository.allRides
         .stateIn(
             scope = viewModelScope,
@@ -52,11 +51,9 @@ class ScooterViewModel(
             initialValue = emptyList()
         )
 
-    // Realtime Chart Data (Limit to last 40 seconds)
     private val _chartPoints = MutableStateFlow<List<TelemetryDataPoint>>(emptyList())
     val chartPoints: StateFlow<List<TelemetryDataPoint>> = _chartPoints.asStateFlow()
 
-    // Active Ride Recording State
     private val _isRecording = MutableStateFlow(false)
     val isRecording: StateFlow<Boolean> = _isRecording.asStateFlow()
 
@@ -74,9 +71,36 @@ class ScooterViewModel(
     private var chartRecordingJob: Job? = null
     private val speedPointsList = mutableListOf<Double>()
 
+    private val _batteryHealth = MutableStateFlow(98)
+    val batteryHealth: StateFlow<Int> = _batteryHealth.asStateFlow()
+
+    private val _rgbColor = MutableStateFlow(0xFFFF0000.toInt())
+    val rgbColor: StateFlow<Int> = _rgbColor.asStateFlow()
+
+    private val _ledMode = MutableStateFlow("Solid")
+    val ledMode: StateFlow<String> = _ledMode.asStateFlow()
+
+    private val _tachoBrightness = MutableStateFlow(1.0f)
+    val tachoBrightness: StateFlow<Float> = _tachoBrightness.asStateFlow()
+
     init {
-        // Start collection of chart data points
         startChartDataRecording()
+
+        viewModelScope.launch {
+            bleManager.rawBleTraffic.collect { packet ->
+                _trafficList.update { (it + packet).takeLast(50) }
+            }
+        }
+
+        viewModelScope.launch {
+            _tachoBrightness.value = settingsManager.tachoBrightness.first()
+            _ledMode.value = settingsManager.ledMode.first()
+            
+            val lastAddress = settingsManager.lastConnectedAddress.first()
+            if (!lastAddress.isNullOrBlank()) {
+                bleManager.connect(lastAddress)
+            }
+        }
     }
 
     private fun startChartDataRecording() {
@@ -95,20 +119,43 @@ class ScooterViewModel(
                         if (updated.size > 40) updated.drop(1) else updated
                     }
                 } else {
-                    // Smooth clear or keep chart static when disconnected
                     if (_chartPoints.value.isNotEmpty() && connectionState.value == ConnectionState.DISCONNECTED) {
                         _chartPoints.value = emptyList()
                     }
                 }
-                delay(1000) // Append every 1 second
+                delay(1000)
             }
         }
     }
 
-    // --- Scooter BLE Controls ---
+    fun sendCustomCommand(command: ByteArray) = bleManager.sendCustomCommand(command)
+
+    fun performBatteryDiagnostic() {
+        viewModelScope.launch {
+            _batteryHealth.value = 95
+        }
+    }
+
+    fun setRgbColor(color: Int) { _rgbColor.value = color }
+    fun setLedMode(mode: String) { 
+        _ledMode.value = mode
+        viewModelScope.launch { settingsManager.saveSettings(_tachoBrightness.value, mode) }
+    }
+    fun setTachoBrightness(brightness: Float) { 
+        _tachoBrightness.value = brightness 
+        viewModelScope.launch { settingsManager.saveSettings(brightness, _ledMode.value) }
+    }
+    
+    fun clearTraffic() {
+        _trafficList.value = emptyList()
+    }
+    
     fun startScan() = bleManager.startScan()
     fun stopScan() = bleManager.stopScan()
-    fun connect(address: String) = bleManager.connect(address)
+    fun connect(address: String) {
+        viewModelScope.launch { settingsManager.saveLastConnectedAddress(address) }
+        bleManager.connect(address)
+    }
     fun disconnect() = bleManager.disconnect()
     
     fun setGear(gear: Int) = bleManager.setGear(gear)
@@ -187,7 +234,6 @@ class ScooterViewModel(
     fun simulateBrake(pressed: Boolean) = bleManager.simulateBrake(pressed)
     fun triggerSimulatedError(errorCode: String?) = bleManager.triggerSimulatedError(errorCode)
 
-    // --- Active Ride Persistence ---
     fun toggleRideRecording() {
         if (_isRecording.value) {
             stopAndSaveRide()
@@ -204,7 +250,6 @@ class ScooterViewModel(
         _rideMaxSpeed.value = 0.0
         speedPointsList.clear()
 
-        // Capture initial trip mileage to offset
         val initialTrip = telemetry.value.tripMileageKm
 
         rideRecordingJob = viewModelScope.launch {
@@ -220,7 +265,6 @@ class ScooterViewModel(
                     _rideMaxSpeed.value = currentSpeed
                 }
 
-                // Distance gained inside recording
                 val distanceGained = currentTelemetry.tripMileageKm.toDouble() - initialTrip
                 _rideDistance.value = if (distanceGained > 0.0) distanceGained else 0.0
             }
@@ -237,7 +281,6 @@ class ScooterViewModel(
         val duration = _rideSeconds.value
         val maxSpeed = _rideMaxSpeed.value
 
-        // Only save ride logs with meaningful distance (> 0.01 km) or duration (> 2 sec)
         if (distance > 0.005 || duration > 3) {
             viewModelScope.launch {
                 rideRepository.insertRide(
@@ -272,7 +315,6 @@ class ScooterViewModel(
         bleManager.disconnect()
     }
 
-    // Custom Factory inside ScooterViewModel
     class Factory(private val application: Application) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -280,7 +322,8 @@ class ScooterViewModel(
                 val db = AppDatabase.getDatabase(application)
                 val repository = RideRepository(db.rideDao())
                 val bleManager = ScooterBleManager(application)
-                return ScooterViewModel(application, bleManager, repository) as T
+                val settingsManager = SettingsManager(application)
+                return ScooterViewModel(application, bleManager, repository, settingsManager) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class")
         }

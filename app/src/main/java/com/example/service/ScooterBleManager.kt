@@ -28,6 +28,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.isActive
@@ -45,7 +46,8 @@ data class BleDevice(
     val address: String,
     val name: String?,
     val rssi: Int,
-    val device: BluetoothDevice? = null
+    val device: BluetoothDevice? = null,
+    val isScooter: Boolean = false
 )
 
 @SuppressLint("MissingPermission")
@@ -82,6 +84,9 @@ class ScooterBleManager(private val context: Context) {
 
     private val _telemetry = MutableStateFlow(ScooterTelemetry())
     val telemetry: StateFlow<ScooterTelemetry> = _telemetry.asStateFlow()
+
+    private val _rawBleTraffic = kotlinx.coroutines.flow.MutableSharedFlow<String>(replay = 50)
+    val rawBleTraffic: kotlinx.coroutines.flow.SharedFlow<String> = _rawBleTraffic.asSharedFlow()
 
     private val _isSimulationMode = MutableStateFlow(false) // ALWAYS FALSE, simulation disabled
     val isSimulationMode: StateFlow<Boolean> = _isSimulationMode.asStateFlow()
@@ -188,13 +193,16 @@ class ScooterBleManager(private val context: Context) {
             val name = device.name
             val address = device.address
             val rssi = result.rssi
+            val isScooter = name?.contains("Kirin", ignoreCase = true) == true || 
+                            name?.contains("Kirin", ignoreCase = true) == true ||
+                            name?.contains("G2", ignoreCase = true) == true
 
             _scannedDevices.update { currentList ->
                 if (currentList.none { it.address == address }) {
-                    currentList + BleDevice(address, name, rssi, device)
+                    currentList + BleDevice(address, name, rssi, device, isScooter)
                 } else {
                     currentList.map {
-                        if (it.address == address) it.copy(rssi = rssi, name = name ?: it.name) else it
+                        if (it.address == address) it.copy(rssi = rssi, name = name ?: it.name, isScooter = isScooter) else it
                     }
                 }
             }
@@ -255,6 +263,9 @@ class ScooterBleManager(private val context: Context) {
         }
     }
 
+    private val _discoveredServices = MutableStateFlow<List<String>>(emptyList())
+    val discoveredServices: StateFlow<List<String>> = _discoveredServices.asStateFlow()
+
     private val gattCallback = object : BluetoothGattCallback() {
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
             if (status != BluetoothGatt.GATT_SUCCESS) {
@@ -268,7 +279,6 @@ class ScooterBleManager(private val context: Context) {
                 Log.d(TAG, "Connected to GATT server.")
                 _connectionState.value = ConnectionState.CONNECTED
                 try {
-                    // Discover services after successful connection
                     gatt.discoverServices()
                 } catch (e: SecurityException) {
                     Log.e(TAG, "SecurityException during discoverServices: ${e.message}")
@@ -284,6 +294,13 @@ class ScooterBleManager(private val context: Context) {
                 Log.e(TAG, "Service discovery failed with status: $status")
                 return
             }
+
+            val services = gatt.services
+            val serviceList = services.map { service ->
+                "Service: ${service.uuid}\n" + 
+                service.characteristics.joinToString("\n") { "  Char: ${it.uuid} (Props: ${it.properties})" }
+            }
+            _discoveredServices.value = serviceList
 
             // Find either Nordic UART or Common Serial service
             val uartService = gatt.getService(SERVICE_UUID_UART)
@@ -321,6 +338,7 @@ class ScooterBleManager(private val context: Context) {
         @Deprecated("Deprecated in Java")
         override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
             val data = characteristic.value ?: return
+            scope.launch { _rawBleTraffic.emit("IN: ${data.joinToString(" ") { String.format("%02X", it) }}") }
             parseScooterData(data)
         }
     }
@@ -333,10 +351,16 @@ class ScooterBleManager(private val context: Context) {
         writeCharacteristic(queryPacket)
     }
 
+    fun sendCustomCommand(command: ByteArray) {
+        writeCharacteristic(command)
+    }
+
     private fun writeCharacteristic(data: ByteArray) {
         val characteristic = rxCharacteristic
         val gatt = bluetoothGatt
         if (gatt == null || characteristic == null) return
+
+        scope.launch { _rawBleTraffic.emit("OUT: ${data.joinToString(" ") { String.format("%02X", it) }}") }
 
         try {
             characteristic.value = data

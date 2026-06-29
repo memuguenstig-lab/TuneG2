@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MultilineChart
@@ -45,6 +46,7 @@ import com.example.ui.screens.DashboardScreen
 import com.example.ui.screens.ScannerScreen
 import com.example.ui.screens.ChartScreen
 import com.example.ui.screens.HistoryScreen
+import com.example.ui.screens.SniffingScreen
 import com.example.ui.screens.SettingsScreen
 import com.example.ui.theme.KirinTheme
 
@@ -53,6 +55,7 @@ enum class AppTab {
     SCANNER,
     CHART,
     HISTORY,
+    SNIFFING,
     SETTINGS
 }
 
@@ -113,6 +116,10 @@ class MainActivity : ComponentActivity() {
                             modifier = screenModifier
                         )
                         AppTab.HISTORY -> HistoryScreen(
+                            viewModel = viewModel,
+                            modifier = screenModifier
+                        )
+                        AppTab.SNIFFING -> SniffingScreen(
                             viewModel = viewModel,
                             modifier = screenModifier
                         )
@@ -231,6 +238,19 @@ fun KirinBottomNavigation(
                 indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
             ),
             modifier = Modifier.testTag("nav_history")
+        )
+
+        NavigationBarItem(
+            selected = currentTab == AppTab.SNIFFING,
+            onClick = { onTabSelected(AppTab.SNIFFING) },
+            icon = { Icon(imageVector = Icons.Default.BugReport, contentDescription = "Sniffing") },
+            label = { Text("Sniffing") },
+            colors = NavigationBarItemDefaults.colors(
+                selectedIconColor = MaterialTheme.colorScheme.primary,
+                selectedTextColor = MaterialTheme.colorScheme.primary,
+                indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+            ),
+            modifier = Modifier.testTag("nav_sniffing")
         )
 
         NavigationBarItem(

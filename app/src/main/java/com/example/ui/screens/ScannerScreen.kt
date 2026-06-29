@@ -30,6 +30,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.BluetoothSearching
 import androidx.compose.material.icons.filled.Devices
+import androidx.compose.material.icons.filled.DirectionsBike
 import androidx.compose.material.icons.filled.MobileOff
 import androidx.compose.material.icons.filled.NetworkCheck
 import androidx.compose.material.icons.filled.Refresh
@@ -412,14 +413,14 @@ fun DeviceItemRow(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                    color = (if (device.isScooter) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary).copy(alpha = 0.1f),
                     modifier = Modifier.size(40.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            imageVector = Icons.Default.Router,
+                            imageVector = if (device.isScooter) Icons.Default.DirectionsBike else Icons.Default.Router,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = if (device.isScooter) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
                         )
                     }
                 }
