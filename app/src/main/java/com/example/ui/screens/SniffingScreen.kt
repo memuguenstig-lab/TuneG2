@@ -20,6 +20,7 @@ import com.example.ui.ScooterViewModel
 fun SniffingScreen(viewModel: ScooterViewModel, modifier: Modifier = Modifier) {
     val traffic by viewModel.trafficList.collectAsState()
     val services by viewModel.discoveredServices.collectAsState()
+    val analysisResult by viewModel.analysisResult.collectAsState()
     var commandText by remember { mutableStateOf("") }
     
     Column(modifier = modifier.fillMaxSize().padding(16.dp)) {
@@ -30,6 +31,18 @@ fun SniffingScreen(viewModel: ScooterViewModel, modifier: Modifier = Modifier) {
             }
         }
         
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        Button(onClick = { viewModel.analyzeTraffic() }, modifier = Modifier.fillMaxWidth()) {
+            Text("Analyze Traffic with AI")
+        }
+        
+        if (analysisResult != null) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text("AI Analysis:", style = MaterialTheme.typography.titleSmall)
+            Text(analysisResult!!, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(8.dp))
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
         
         Row {

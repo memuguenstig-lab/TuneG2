@@ -40,6 +40,9 @@ class ScooterViewModel(
     
     private val _trafficList = MutableStateFlow<List<String>>(emptyList())
     val trafficList: StateFlow<List<String>> = _trafficList.asStateFlow()
+    
+    private val _analysisResult = MutableStateFlow<String?>(null)
+    val analysisResult: StateFlow<String?> = _analysisResult.asStateFlow()
 
     val isSimulationMode = bleManager.isSimulationMode
     val isBluetoothEnabled = bleManager.isBluetoothEnabled
@@ -148,6 +151,14 @@ class ScooterViewModel(
     
     fun clearTraffic() {
         _trafficList.value = emptyList()
+        _analysisResult.value = null
+    }
+
+    fun analyzeTraffic() {
+        viewModelScope.launch {
+            _analysisResult.value = "Analyzing..."
+            _analysisResult.value = com.example.service.GeminiService.analyzeBleTraffic(_trafficList.value)
+        }
     }
     
     fun startScan() = bleManager.startScan()
